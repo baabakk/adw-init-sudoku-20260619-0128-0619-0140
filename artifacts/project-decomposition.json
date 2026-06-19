@@ -1,0 +1,47 @@
+{
+  "version": "1.0",
+  "teamCount": 1,
+  "stack": {
+    "language": "typescript",
+    "monorepoTool": "single-package",
+    "installCommand": "npm install",
+    "buildCommand": "npm run build",
+    "testCommand": "npm test"
+  },
+  "subsystems": [
+    {
+      "subsystemId": "app",
+      "title": "Whole application",
+      "scope": "The entire project, built by a single developer.",
+      "ownedPaths": [
+        "."
+      ],
+      "interfaces": [],
+      "dependsOn": [],
+      "guardrailsSlice": "all"
+    }
+  ],
+  "integrationPlan": {
+    "entrypoints": [],
+    "buildOrder": [
+      "app"
+    ],
+    "sharedContracts": [],
+    "runtimeComposition": "single application"
+  },
+  "coupling": {
+    "crossTeamEdges": 0,
+    "densityScore": 0,
+    "justification": "No LLM available — defaulting to a single developer."
+  },
+  "metadata": {
+    "derivedFrom": [
+      "tpm-contract",
+      "arch-guardrails"
+    ],
+    "confidenceMap": [],
+    "gaps": [
+      "Decomposition fallback — single-team default."
+    ]
+  }
+}

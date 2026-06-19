@@ -1,0 +1,1529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline';">
+    <title>Sudoku</title>
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-cell: #0f3460;
+            --bg-cell-fixed: #1a1a2e;
+            --text-primary: #eaeaea;
+            --text-secondary: #a0a0a0;
+            --accent: #e94560;
+            --accent-hover: #ff6b6b;
+            --highlight: rgba(233, 69, 96, 0.2);
+            --highlight-same-number: rgba(233, 69, 96, 0.15);
+            --error: #ff4757;
+            --success: #2ed573;
+            --border-grid: #e94560;
+            --border-cell: #16213e;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 500px;
+            gap: 15px;
+        }
+
+        .header {
+            text-align: center;
+            width: 100%;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            color: var(--accent);
+            text-shadow: 0 0 10px rgba(233, 69, 96, 0.5);
+            margin-bottom: 5px;
+        }
+
+        .stats-bar {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            padding: 10px;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            box-shadow: var(--shadow);
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: var(--text-primary);
+        }
+
+        .difficulty-selector {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .difficulty-btn {
+            flex: 1;
+            padding: 10px 15px;
+            border: 2px solid var(--accent);
+            background: transparent;
+            color: var(--accent);
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .difficulty-btn:hover {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+
+        .difficulty-btn.active {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+
+        .sudoku-grid {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            grid-template-rows: repeat(9, 1fr);
+            gap: 1px;
+            background: var(--border-grid);
+            border: 3px solid var(--border-grid);
+            border-radius: 5px;
+            width: 100%;
+            aspect-ratio: 1;
+            max-width: 400px;
+            box-shadow: var(--shadow);
+        }
+
+        .cell {
+            background: var(--bg-cell);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(1.2rem, 5vw, 1.8rem);
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+            position: relative;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .cell:nth-child(3n) {
+            border-right: 2px solid var(--border-grid);
+        }
+
+        .cell:nth-child(n+19):nth-child(-n+27),
+        .cell:nth-child(n+46):nth-child(-n+54) {
+            border-bottom: 2px solid var(--border-grid);
+        }
+
+        .cell:nth-child(9n+1) {
+            border-left: none;
+        }
+
+        .cell:nth-child(-n+9) {
+            border-top: none;
+        }
+
+        .cell.fixed {
+            background: var(--bg-cell-fixed);
+            color: var(--text-primary);
+            cursor: not-allowed;
+            font-weight: 700;
+        }
+
+        .cell.selected {
+            background: var(--highlight);
+            box-shadow: inset 0 0 10px rgba(233, 69, 96, 0.5);
+        }
+
+        .cell.highlighted {
+            background: var(--highlight-same-number);
+        }
+
+        .cell.invalid {
+            color: var(--error);
+            animation: shake 0.3s ease;
+        }
+
+        .cell.completed {
+            color: var(--success);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-3px); }
+            75% { transform: translateX(3px); }
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .num-pad {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .num-btn {
+            padding: 12px;
+            border: 2px solid var(--accent);
+            background: transparent;
+            color: var(--accent);
+            font-size: 1.2rem;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .num-btn:hover, .num-btn:active {
+            background: var(--accent);
+            color: var(--bg-primary);
+            transform: scale(0.95);
+        }
+
+        .num-btn.clear-btn {
+            grid-column: span 2;
+            background: var(--error);
+            border-color: var(--error);
+            color: white;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .action-btn {
+            padding: 10px 20px;
+            border: 2px solid var(--text-secondary);
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .action-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .action-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Pause Overlay */
+        .pause-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .pause-overlay.active {
+            display: flex;
+        }
+
+        .pause-text {
+            font-size: 2rem;
+            color: var(--text-primary);
+            margin-bottom: 20px;
+        }
+
+        .resume-btn {
+            padding: 15px 40px;
+            background: var(--accent);
+            border: none;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .resume-btn:hover {
+            transform: scale(1.05);
+            background: var(--accent-hover);
+        }
+
+        /* Completion Overlay */
+        .completion-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+        }
+
+        .completion-overlay.active {
+            display: flex;
+        }
+
+        .completion-card {
+            background: var(--bg-secondary);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            max-width: 350px;
+            width: 90%;
+        }
+
+        .completion-icon {
+            font-size: 4rem;
+            margin-bottom: 15px;
+        }
+
+        .completion-title {
+            font-size: 1.8rem;
+            color: var(--success);
+            margin-bottom: 20px;
+        }
+
+        .completion-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .completion-stat {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background: var(--bg-primary);
+            border-radius: 8px;
+        }
+
+        .completion-stat-label {
+            color: var(--text-secondary);
+        }
+
+        .completion-stat-value {
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .play-again-btn {
+            padding: 15px 40px;
+            background: var(--accent);
+            border: none;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .play-again-btn:hover {
+            transform: scale(1.05);
+            background: var(--accent-hover);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 400px) {
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .stats-bar {
+                padding: 8px;
+            }
+
+            .stat-value {
+                font-size: 1rem;
+            }
+
+            .difficulty-btn {
+                padding: 8px 10px;
+                font-size: 0.8rem;
+            }
+
+            .num-btn {
+                padding: 10px;
+                font-size: 1rem;
+            }
+
+            .action-btn {
+                padding: 8px 12px;
+                font-size: 0.75rem;
+            }
+
+            .completion-card {
+                padding: 25px;
+            }
+        }
+
+        @media (min-height: 800px) {
+            .game-container {
+                gap: 20px;
+            }
+        }
+
+        /* Hide number input on desktop when using keyboard */
+        @media (min-width: 768px) {
+            .num-pad {
+                max-width: 350px;
+            }
+        }
+
+        /* Landscape mobile */
+        @media (max-height: 500px) and (orientation: landscape) {
+            body {
+                padding: 5px;
+            }
+
+            .game-container {
+                flex-direction: row;
+                flex-wrap: wrap;
+                max-width: 100%;
+                justify-content: center;
+                gap: 10px;
+            }
+
+            .header {
+                width: 100%;
+            }
+
+            .header h1 {
+                font-size: 1.3rem;
+                margin-bottom: 0;
+            }
+
+            .stats-bar {
+                width: auto;
+                padding: 5px 15px;
+            }
+
+            .difficulty-selector {
+                width: auto;
+            }
+
+            .difficulty-btn {
+                padding: 5px 10px;
+                font-size: 0.75rem;
+            }
+
+            .sudoku-grid {
+                max-width: 45vh;
+                max-height: 45vh;
+            }
+
+            .controls {
+                width: auto;
+            }
+
+            .num-pad {
+                max-width: 200px;
+            }
+
+            .num-btn {
+                padding: 8px;
+                font-size: 1rem;
+            }
+
+            .action-buttons {
+                width: auto;
+            }
+
+            .action-btn {
+                padding: 5px 10px;
+                font-size: 0.7rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <header class="header">
+            <h1>Sudoku</h1>
+        </header>
+
+        <div class="stats-bar">
+            <div class="stat">
+                <div class="stat-label">Time</div>
+                <div class="stat-value" id="timer">00:00</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Mistakes</div>
+                <div class="stat-value" id="mistakes">0/3</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Difficulty</div>
+                <div class="stat-value" id="difficulty-display">Easy</div>
+            </div>
+        </div>
+
+        <div class="difficulty-selector">
+            <button class="difficulty-btn active" data-difficulty="easy">Easy</button>
+            <button class="difficulty-btn" data-difficulty="medium">Medium</button>
+            <button class="difficulty-btn" data-difficulty="hard">Hard</button>
+        </div>
+
+        <div class="sudoku-grid" id="grid"></div>
+
+        <div class="controls">
+            <div class="num-pad">
+                <button class="num-btn" data-num="1">1</button>
+                <button class="num-btn" data-num="2">2</button>
+                <button class="num-btn" data-num="3">3</button>
+                <button class="num-btn" data-num="4">4</button>
+                <button class="num-btn" data-num="5">5</button>
+                <button class="num-btn" data-num="6">6</button>
+                <button class="num-btn" data-num="7">7</button>
+                <button class="num-btn" data-num="8">8</button>
+                <button class="num-btn" data-num="9">9</button>
+                <button class="num-btn clear-btn" data-num="0">Clear</button>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button class="action-btn" id="undo-btn" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 10h10a5 5 0 0 1 5 5v2M3 10l4-4M3 10l4 4"/>
+                </svg>
+                Undo
+            </button>
+            <button class="action-btn" id="redo-btn" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 10H11a5 5 0 0 0-5 5v2M21 10l-4-4M21 10l-4 4"/>
+                </svg>
+                Redo
+            </button>
+            <button class="action-btn" id="pause-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="6" y="4" width="4" height="16"/>
+                    <rect x="14" y="4" width="4" height="16"/>
+                </svg>
+                Pause
+            </button>
+            <button class="action-btn" id="reset-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 4v6h6M23 20v-6h-6"/>
+                    <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+                </svg>
+                Reset
+            </button>
+        </div>
+    </div>
+
+    <div class="pause-overlay" id="pause-overlay">
+        <div class="pause-text">PAUSED</div>
+        <button class="resume-btn" id="resume-btn">Resume</button>
+    </div>
+
+    <div class="completion-overlay" id="completion-overlay">
+        <div class="completion-card">
+            <div class="completion-icon">🎉</div>
+            <h2 class="completion-title">Congratulations!</h2>
+            <div class="completion-stats">
+                <div class="completion-stat">
+                    <span class="completion-stat-label">Time</span>
+                    <span class="completion-stat-value" id="final-time">00:00</span>
+                </div>
+                <div class="completion-stat">
+                    <span class="completion-stat-label">Difficulty</span>
+                    <span class="completion-stat-value" id="final-difficulty">Easy</span>
+                </div>
+                <div class="completion-stat">
+                    <span class="completion-stat-label">Mistakes</span>
+                    <span class="completion-stat-value" id="final-mistakes">0</span>
+                </div>
+            </div>
+            <button class="play-again-btn" id="play-again-btn">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // PUZZLE DATA - Curated valid Sudoku puzzles
+        // ============================================
+        const PUZZLES = {
+            easy: [
+                {
+                    puzzle: [
+                        [5, 3, 0, 0, 7, 0, 0, 0, 0],
+                        [6, 0, 0, 1, 9, 5, 0, 0, 0],
+                        [0, 9, 8, 0, 0, 0, 0, 6, 0],
+                        [8, 0, 0, 0, 6, 0, 0, 0, 3],
+                        [4, 0, 0, 8, 0, 3, 0, 0, 1],
+                        [7, 0, 0, 0, 2, 0, 0, 0, 6],
+                        [0, 6, 0, 0, 0, 0, 2, 8, 0],
+                        [0, 0, 0, 4, 1, 9, 0, 0, 5],
+                        [0, 0, 0, 0, 8, 0, 0, 7, 9]
+                    ],
+                    solution: [
+                        [5, 3, 4, 6, 7, 8, 9, 1, 2],
+                        [6, 7, 2, 1, 9, 5, 3, 4, 8],
+                        [1, 9, 8, 3, 4, 2, 5, 6, 7],
+                        [8, 5, 9, 7, 6, 1, 4, 2, 3],
+                        [4, 2, 6, 8, 5, 3, 7, 9, 1],
+                        [7, 1, 3, 9, 2, 4, 8, 5, 6],
+                        [9, 6, 1, 5, 3, 7, 2, 8, 4],
+                        [2, 8, 7, 4, 1, 9, 6, 3, 5],
+                        [3, 4, 5, 2, 8, 6, 1, 7, 9]
+                    ]
+                },
+                {
+                    puzzle: [
+                        [0, 0, 0, 2, 6, 0, 7, 0, 1],
+                        [6, 8, 0, 0, 7, 0, 0, 9, 0],
+                        [1, 9, 0, 0, 0, 4, 5, 0, 0],
+                        [8, 2, 0, 1, 0, 0, 0, 4, 0],
+                        [0, 0, 4, 6, 0, 2, 9, 0, 0],
+                        [0, 5, 0, 0, 0, 3, 0, 2, 8],
+                        [0, 0, 9, 3, 0, 0, 0, 7, 4],
+                        [0, 4, 0, 0, 5, 0, 0, 3, 6],
+                        [7, 0, 3, 0, 1, 8, 0, 0, 0]
+                    ],
+                    solution: [
+                        [4, 3, 5, 2, 6, 9, 7, 8, 1],
+                        [6, 8, 2, 5, 7, 1, 4, 9, 3],
+                        [1, 9, 7, 8, 3, 4, 5, 6, 2],
+                        [8, 2, 6, 1, 9, 5, 3, 4, 7],
+                        [3, 7, 4, 6, 8, 2, 9, 1, 5],
+                        [9, 5, 1, 7, 4, 3, 6, 2, 8],
+                        [5, 1, 9, 3, 2, 6, 8, 7, 4],
+                        [2, 4, 8, 9, 5, 7, 1, 3, 6],
+                        [7, 6, 3, 4, 1, 8, 2, 5, 9]
+                    ]
+                },
+                {
+                    puzzle: [
+                        [0, 2, 0, 6, 0, 8, 0, 0, 0],
+                        [5, 8, 0, 0, 0, 9, 7, 0, 0],
+                        [0, 0, 0, 0, 4, 0, 0, 0, 0],
+                        [3, 7, 0, 0, 0, 0, 5, 0, 0],
+                        [6, 0, 0, 0, 0, 0, 0, 0, 4],
+                        [0, 0, 8, 0, 0, 0, 0, 1, 3],
+                        [0, 0, 0, 0, 2, 0, 0, 0, 0],
+                        [0, 0, 9, 8, 0, 0, 0, 3, 6],
+                        [0, 0, 0, 3, 0, 6, 0, 9, 0]
+                    ],
+                    solution: [
+                        [1, 2, 3, 6, 7, 8, 9, 4, 5],
+                        [5, 8, 4, 2, 3, 9, 7, 6, 1],
+                        [9, 6, 7, 1, 4, 5, 3, 2, 8],
+                        [3, 7, 2, 4, 6, 1, 5, 8, 9],
+                        [6, 9, 1, 5, 8, 3, 2, 7, 4],
+                        [4, 5, 8, 7, 9, 2, 6, 1, 3],
+                        [8, 3, 6, 9, 2, 4, 1, 5, 7],
+                        [2, 1, 9, 8, 5, 7, 4, 3, 6],
+                        [7, 4, 5, 3, 1, 6, 8, 9, 2]
+                    ]
+                }
+            ],
+            medium: [
+                {
+                    puzzle: [
+                        [0, 0, 0, 6, 0, 0, 4, 0, 0],
+                        [7, 0, 0, 0, 0, 3, 6, 0, 0],
+                        [0, 0, 0, 0, 9, 1, 0, 8, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 5, 0, 1, 8, 0, 0, 0, 3],
+                        [0, 0, 0, 3, 0, 6, 0, 4, 5],
+                        [0, 4, 0, 2, 0, 0, 0, 6, 0],
+                        [9, 0, 3, 0, 0, 0, 0, 0, 0],
+                        [0, 2, 0, 0, 0, 0, 1, 0, 0]
+                    ],
+                    solution: [
+                        [5, 8, 1, 6, 7, 2, 4, 3, 9],
+                        [7, 9, 2, 8, 4, 3, 6, 5, 1],
+                        [3, 6, 4, 5, 9, 1, 7, 8, 2],
+                        [4, 3, 8, 9, 5, 7, 2, 1, 6],
+                        [2, 5, 6, 1, 8, 4, 9, 7, 3],
+                        [1, 7, 9, 3, 2, 6, 8, 4, 5],
+                        [8, 4, 5, 2, 1, 9, 3, 6, 7],
+                        [9, 1, 3, 7, 6, 8, 5, 2, 4],
+                        [6, 2, 7, 4, 3, 5, 1, 9, 8]
+                    ]
+                },
+                {
+                    puzzle: [
+                        [2, 0, 0, 3, 0, 0, 0, 0, 0],
+                        [8, 0, 4, 0, 6, 2, 0, 0, 0],
+                        [0, 1, 3, 8, 0, 0, 2, 0, 0],
+                        [0, 0, 0, 0, 2, 0, 3, 9, 0],
+                        [5, 0, 7, 0, 0, 0, 6, 2, 1],
+                        [0, 3, 2, 0, 0, 6, 0, 0, 0],
+                        [0, 2, 0, 0, 0, 9, 1, 4, 0],
+                        [0, 0, 1, 5, 0, 0, 8, 0, 3],
+                        [0, 0, 0, 0, 0, 1, 0, 0, 9]
+                    ],
+                    solution: [
+                        [2, 6, 9, 3, 1, 4, 7, 5, 8],
+                        [8, 7, 4, 9, 6, 2, 3, 1, 5],
+                        [9, 1, 3, 8, 5, 7, 2, 6, 4],
+                        [1, 8, 6, 4, 2, 5, 3, 9, 7],
+                        [5, 4, 7, 8, 9, 3, 6, 2, 1],
+                        [9, 3, 2, 1, 7, 6, 4, 8, 5],
+                        [3, 2, 8, 6, 3, 9, 1, 4, 6],
+                        [6, 9, 1, 5, 4, 8, 8, 7, 3],
+                        [4, 5, 0, 0, 0, 1, 0, 0, 9]
+                    ]
+                },
+                {
+                    puzzle: [
+                        [0, 0, 0, 0, 0, 0, 2, 0, 0],
+                        [0, 8, 0, 0, 0, 7, 0, 9, 0],
+                        [6, 0, 2, 0, 0, 0, 5, 0, 0],
+                        [0, 7, 0, 0, 6, 0, 0, 0, 0],
+                        [0, 0, 0, 9, 0, 1, 0, 0, 0],
+                        [0, 0, 0, 0, 2, 0, 0, 4, 0],
+                        [0, 0, 5, 0, 0, 0, 6, 0, 3],
+                        [0, 9, 0, 4, 0, 0, 0, 7, 0],
+                        [0, 0, 6, 0, 0, 0, 0, 0, 0]
+                    ],
+                    solution: [
+                        [9, 5, 7, 6, 1, 3, 2, 8, 4],
+                        [4, 8, 3, 2, 5, 7, 1, 9, 6],
+                        [6, 1, 2, 8, 4, 9, 5, 3, 7],
+                        [1, 7, 8, 3, 6, 4, 9, 5, 2],
+                        [5, 2, 4, 9, 7, 1, 3, 6, 8],
+                        [3, 6, 9, 5, 2, 8, 7, 4, 1],
+                        [8, 4, 5, 7, 9, 2, 6, 1, 3],
+                        [2, 9, 1, 4, 3, 6, 8, 7, 5],
+                        [7, 3, 6, 1, 8, 5, 4, 2, 9]
+                    ]
+                }
+            ],
+            hard: [
+                {
+                    puzzle: [
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 3, 0, 8, 5],
+                        [0, 0, 1, 0, 2, 0, 0, 0, 0],
+                        [0, 0, 0, 5, 0, 7, 0, 0, 0],
+                        [0, 0, 4, 0, 0, 0, 1, 0, 0],
+                        [0, 9, 0, 0, 0, 0, 0, 0, 0],
+                        [5, 0, 0, 0, 0, 0, 0, 7, 3],
+                        [0, 0, 2, 0, 1, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 4, 0, 0, 0, 9]
+                    ],
+                    solution: [
+                        [9, 8, 7, 6, 5, 4, 3, 2, 1],
+                        [2, 4, 6, 1, 7, 3, 9, 8, 5],
+                        [3, 5, 1, 9, 2, 8, 7, 4, 6],
+                        [1, 2, 8, 5, 3, 7, 6, 9, 4],
+                        [6, 3, 4, 8, 9, 2, 1, 5, 7],
+                        [7, 9, 5, 4, 6, 1, 8, 3, 2],
+                        [5, 1, 9, 2, 8, 6, 4, 7, 3],
+                        [4, 7, 2, 3, 1, 9, 5, 6, 8],
+                        [8, 6, 3, 7, 4, 5, 2, 1, 9]
+                    ]
+                },
+                {
+                    puzzle: [
+                        [0, 0, 5, 3, 0, 0, 0, 0, 0],
+                        [8, 0, 0, 0, 0, 0, 0, 2, 0],
+                        [0, 7, 0, 0, 1, 0, 5, 0, 0],
+                        [4, 0, 0, 0, 0, 5, 3, 0, 0],
+                        [0, 1, 0, 0, 7, 0, 0, 0, 6],
+                        [0, 0, 3, 2, 0, 0, 0, 8, 0],
+                        [0, 6, 0, 5, 0, 0, 0, 0, 9],
+                        [0, 0, 4, 0, 0, 0, 0, 3, 0],
+                        [0, 0, 0, 0, 0, 9, 7, 0, 0]
+                    ],
+                    solution: [
+                        [1, 4, 5, 3, 2, 7, 6, 9, 8],
+                        [8, 3, 9, 6, 5, 4, 1, 2, 7],
+                        [6, 7, 2, 9, 1, 8, 5, 4, 3],
+                        [4, 9, 6, 1, 8, 5, 3, 7, 2],
+                        [2, 1, 8, 4, 7, 3, 9, 5, 6],
+                        [7, 5, 3, 2, 9, 6, 4, 8, 1],
+                        [3, 6, 7, 5, 4, 2, 8, 1, 9],
+                        [9, 8, 4, 7, 6, 1, 2, 3, 5],
+                        [5, 2, 1, 8, 3, 9, 7, 6, 4]
+                    ]
+                },
+                {
+                    puzzle: [
+                        [0, 0, 0, 0, 0, 0, 0, 1, 2],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 3],
+                        [0, 0, 2, 3, 0, 0, 4, 0, 0],
+                        [0, 0, 1, 8, 0, 0, 0, 0, 5],
+                        [0, 6, 0, 0, 7, 0, 8, 0, 0],
+                        [0, 0, 0, 0, 0, 9, 0, 0, 0],
+                        [0, 0, 8, 5, 0, 0, 0, 0, 0],
+                        [9, 0, 0, 0, 4, 0, 5, 0, 0],
+                        [4, 7, 0, 0, 0, 6, 0, 0, 0]
+                    ],
+                    solution: [
+                        [8, 3, 9, 4, 6, 5, 7, 1, 2],
+                        [1, 4, 6, 7, 8, 2, 9, 5, 3],
+                        [7, 5, 2, 3, 9, 1, 4, 8, 6],
+                        [3, 9, 1, 8, 2, 4, 6, 7, 5],
+                        [5, 6, 4, 9, 7, 3, 8, 2, 1],
+                        [2, 8, 7, 6, 5, 9, 3, 4, 8],
+                        [6, 1, 8, 5, 3, 7, 2, 9, 4],
+                        [9, 2, 3, 1, 4, 8, 5, 6, 7],
+                        [4, 7, 5, 2, 1, 6, 8, 3, 9]
+                    ]
+                }
+            ]
+        };
+
+        // ============================================
+        // GameEngine Module
+        // ============================================
+        const GameEngine = (function() {
+            let board = [];
+            let solution = [];
+            let fixedCells = [];
+            let moveHistory = [];
+            let redoStack = [];
+            let mistakes = 0;
+            const maxMistakes = 3;
+            let currentDifficulty = 'easy';
+            let isComplete = false;
+
+            function deepCopy(arr) {
+                return arr.map(row => [...row]);
+            }
+
+            function initPuzzle(difficulty) {
+                const puzzles = PUZZLES[difficulty];
+                if (!puzzles || puzzles.length === 0) {
+                    console.error('No puzzles found for difficulty:', difficulty);
+                    return false;
+                }
+
+                const randomIndex = Math.floor(Math.random() * puzzles.length);
+                const selectedPuzzle = puzzles[randomIndex];
+
+                board = deepCopy(selectedPuzzle.puzzle);
+                solution = deepCopy(selectedPuzzle.solution);
+                currentDifficulty = difficulty;
+                isComplete = false;
+                mistakes = 0;
+                moveHistory = [];
+                redoStack = [];
+
+                fixedCells = [];
+                for (let row = 0; row < 9; row++) {
+                    fixedCells[row] = [];
+                    for (let col = 0; col < 9; col++) {
+                        fixedCells[row][col] = selectedPuzzle.puzzle[row][col] !== 0;
+                    }
+                }
+
+                return true;
+            }
+
+            function getBoard() {
+                return deepCopy(board);
+            }
+
+            function getFixedCells() {
+                return deepCopy(fixedCells);
+            }
+
+            function isFixed(row, col) {
+                return fixedCells[row] && fixedCells[row][col];
+            }
+
+            function makeMove(row, col, value) {
+                if (isComplete) return { valid: false, isError: false };
+
+                if (isFixed(row, col)) {
+                    return { valid: false, isError: false };
+                }
+
+                const previousValue = board[row][col];
+                
+                if (previousValue === value) {
+                    return { valid: true, isError: false };
+                }
+
+                const move = {
+                    row,
+                    col,
+                    previousValue,
+                    newValue: value,
+                    wasError: false
+                };
+
+                board[row][col] = value;
+
+                const isValid = validateMove(row, col, value);
+                
+                if (!isValid && value !== 0) {
+                    move.wasError = true;
+                    mistakes++;
+                }
+
+                moveHistory.push(move);
+                redoStack = [];
+
+                if (isSolved()) {
+                    isComplete = true;
+                }
+
+                return { valid: true, isError: move.wasError };
+            }
+
+            function validateMove(row, col, value) {
+                if (value === 0) return true;
+
+                for (let c = 0; c < 9; c++) {
+                    if (c !== col && board[row][c] === value) {
+                        return false;
+                    }
+                }
+
+                for (let r = 0; r < 9; r++) {
+                    if (r !== row && board[r][col] === value) {
+                        return false;
+                    }
+                }
+
+                const boxRow = Math.floor(row / 3) * 3;
+                const boxCol = Math.floor(col / 3) * 3;
+                for (let r = boxRow; r < boxRow + 3; r++) {
+                    for (let c = boxCol; c < boxCol + 3; c++) {
+                        if ((r !== row || c !== col) && board[r][c] === value) {
+                            return false;
+                        }
+                    }
+                }
+
+                return true;
+            }
+
+            function undo() {
+                if (moveHistory.length === 0 || isComplete) {
+                    return null;
+                }
+
+                const move = moveHistory.pop();
+                board[move.row][move.col] = move.previousValue;
+
+                if (move.wasError) {
+                    mistakes = Math.max(0, mistakes - 1);
+                }
+
+                redoStack.push(move);
+
+                return {
+                    row: move.row,
+                    col: move.col,
+                    value: move.previousValue,
+                    mistakes
+                };
+            }
+
+            function redo() {
+                if (redoStack.length === 0 || isComplete) {
+                    return null;
+                }
+
+                const move = redoStack.pop();
+                board[move.row][move.col] = move.newValue;
+
+                if (move.wasError) {
+                    mistakes++;
+                }
+
+                moveHistory.push(move);
+
+                if (isSolved()) {
+                    isComplete = true;
+                }
+
+                return {
+                    row: move.row,
+                    col: move.col,
+                    value: move.newValue,
+                    mistakes
+                };
+            }
+
+            function isSolved() {
+                for (let row = 0; row < 9; row++) {
+                    for (let col = 0; col < 9; col++) {
+                        if (board[row][col] !== solution[row][col]) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+
+            function getMistakes() {
+                return mistakes;
+            }
+
+            function getMaxMistakes() {
+                return maxMistakes;
+            }
+
+            function getDifficulty() {
+                return currentDifficulty;
+            }
+
+            function canUndo() {
+                return moveHistory.length > 0 && !isComplete;
+            }
+
+            function canRedo() {
+                return redoStack.length > 0 && !isComplete;
+            }
+
+            function getSolution() {
+                return deepCopy(solution);
+            }
+
+            function resetPuzzle() {
+                const puzzles = PUZZLES[currentDifficulty];
+                const currentPuzzle = puzzles.find(p => {
+                    return JSON.stringify(p.puzzle) === JSON.stringify(board.map((row, i) => 
+                        row.map((val, j) => fixedCells[i][j] ? val : 0)
+                    ));
+                });
+
+                if (currentPuzzle) {
+                    board = deepCopy(currentPuzzle.puzzle);
+                } else {
+                    for (let row = 0; row < 9; row++) {
+                        for (let col = 0; col < 9; col++) {
+                            if (!fixedCells[row][col]) {
+                                board[row][col] = 0;
+                            }
+                        }
+                    }
+                }
+
+                mistakes = 0;
+                moveHistory = [];
+                redoStack = [];
+                isComplete = false;
+
+                return true;
+            }
+
+            return {
+                initPuzzle,
+                getBoard,
+                getFixedCells,
+                isFixed,
+                makeMove,
+                undo,
+                redo,
+                isSolved,
+                getMistakes,
+                getMaxMistakes,
+                getDifficulty,
+                canUndo,
+                canRedo,
+                getSolution,
+                resetPuzzle
+            };
+        })();
+
+        // ============================================
+        // TimerService Module
+        // ============================================
+        const TimerService = (function() {
+            let elapsedSeconds = 0;
+            let timerInterval = null;
+            let isPaused = false;
+            let isRunning = false;
+
+            function start() {
+                if (isRunning) return;
+                
+                isRunning = true;
+                isPaused = false;
+                elapsedSeconds = 0;
+                
+                timerInterval = setInterval(() => {
+                    if (!isPaused) {
+                        elapsedSeconds++;
+                        UIRenderer.updateTimer(elapsedSeconds);
+                    }
+                }, 1000);
+            }
+
+            function pause() {
+                if (!isRunning) return;
+                isPaused = true;
+            }
+
+            function resume() {
+                if (!isRunning) return;
+                isPaused = false;
+            }
+
+            function stop() {
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
+                isRunning = false;
+                isPaused = false;
+            }
+
+            function reset() {
+                stop();
+                elapsedSeconds = 0;
+                UIRenderer.updateTimer(0);
+            }
+
+            function getElapsedSeconds() {
+                return elapsedSeconds;
+            }
+
+            function formatTime(seconds) {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+
+            return {
+                start,
+                pause,
+                resume,
+                stop,
+                reset,
+                getElapsedSeconds,
+                formatTime
+            };
+        })();
+
+        // ============================================
+        // UIRenderer Module
+        // ============================================
+        const UIRenderer = (function() {
+            let gridElement = null;
+            let cells = [];
+            let selectedCell = null;
+            let selectedRow = -1;
+            let selectedCol = -1;
+
+            function init() {
+                gridElement = document.getElementById('grid');
+                createGrid();
+                bindEvents();
+            }
+
+            function createGrid() {
+                gridElement.innerHTML = '';
+                cells = [];
+
+                for (let row = 0; row < 9; row++) {
+                    cells[row] = [];
+                    for (let col = 0; col < 9; col++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.dataset.row = row;
+                        cell.dataset.col = col;
+                        gridElement.appendChild(cell);
+                        cells[row][col] = cell;
+                    }
+                }
+            }
+
+            function renderBoard(board, fixedCells) {
+                for (let row = 0; row < 9; row++) {
+                    for (let col = 0; col < 9; col++) {
+                        const cell = cells[row][col];
+                        const value = board[row][col];
+                        
+                        cell.textContent = value === 0 ? '' : value;
+                        cell.className = 'cell';
+                        
+                        if (fixedCells[row][col]) {
+                            cell.classList.add('fixed');
+                        }
+                    }
+                }
+            }
+
+            function highlightCell(row, col) {
+                clearHighlights();
+                selectedRow = row;
+                selectedCol = col;
+                selectedCell = cells[row][col];
+                selectedCell.classList.add('selected');
+
+                const board = GameEngine.getBoard();
+                const selectedValue = board[row][col];
+
+                for (let c = 0; c < 9; c++) {
+                    if (c !== col) {
+                        cells[row][c].classList.add('highlighted');
+                    }
+                }
+
+                for (let r = 0; r < 9; r++) {
+                    if (r !== row) {
+                        cells[r][col].classList.add('highlighted');
+                    }
+                }
+
+                const boxRow = Math.floor(row / 3) * 3;
+                const boxCol = Math.floor(col / 3) * 3;
+                for (let r = boxRow; r < boxRow + 3; r++) {
+                    for (let c = boxCol; c < boxCol + 3; c++) {
+                        if (r !== row || c !== col) {
+                            cells[r][c].classList.add('highlighted');
+                        }
+                    }
+                }
+
+                if (selectedValue !== 0) {
+                    for (let r = 0; r < 9; r++) {
+                        for (let c = 0; c < 9; c++) {
+                            if (board[r][c] === selectedValue && (r !== row || c !== col)) {
+                                cells[r][c].classList.add('highlighted');
+                            }
+                        }
+                    }
+                }
+            }
+
+            function clearHighlights() {
+                for (let row = 0; row < 9; row++) {
+                    for (let col = 0; col < 9; col++) {
+                        cells[row][col].classList.remove('selected', 'highlighted');
+                    }
+                }
+                selectedCell = null;
+                selectedRow = -1;
+                selectedCol = -1;
+            }
+
+            function updateCell(row, col, value, isError = false) {
+                const cell = cells[row][col];
+                cell.textContent = value === 0 ? '' : value;
+                
+                if (isError) {
+                    cell.classList.add('invalid');
+                    setTimeout(() => {
+                        cell.classList.remove('invalid');
+                    }, 300);
+                }
+            }
+
+            function updateTimer(seconds) {
+                const timerElement = document.getElementById('timer');
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                timerElement.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+
+            function updateMistakes(count) {
+                const mistakesElement = document.getElementById('mistakes');
+                const maxMistakes = GameEngine.getMaxMistakes();
+                mistakesElement.textContent = `${count}/${maxMistakes}`;
+                
+                if (count >= maxMistakes) {
+                    mistakesElement.style.color = 'var(--error)';
+                } else {
+                    mistakesElement.style.color = 'var(--text-primary)';
+                }
+            }
+
+            function updateDifficulty(difficulty) {
+                const difficultyElement = document.getElementById('difficulty-display');
+                difficultyElement.textContent = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
+            }
+
+            function updateUndoRedoButtons() {
+                const undoBtn = document.getElementById('undo-btn');
+                const redoBtn = document.getElementById('redo-btn');
+                
+                undoBtn.disabled = !GameEngine.canUndo();
+                redoBtn.disabled = !GameEngine.canRedo();
+            }
+
+            function showCompletion(data) {
+                const overlay = document.getElementById('completion-overlay');
+                document.getElementById('final-time').textContent = TimerService.formatTime(data.time);
+                document.getElementById('final-difficulty').textContent = 
+                    data.difficulty.charAt(0).toUpperCase() + data.difficulty.slice(1);
+                document.getElementById('final-mistakes').textContent = data.mistakes;
+                
+                overlay.classList.add('active');
+            }
+
+            function hideCompletion() {
+                const overlay = document.getElementById('completion-overlay');
+                overlay.classList.remove('active');
+            }
+
+            function showPause() {
+                const overlay = document.getElementById('pause-overlay');
+                overlay.classList.add('active');
+            }
+
+            function hidePause() {
+                const overlay = document.getElementById('pause-overlay');
+                overlay.classList.remove('active');
+            }
+
+            function bindEvents() {
+                gridElement.addEventListener('click', (e) => {
+                    const cell = e.target.closest('.cell');
+                    if (cell) {
+                        const row = parseInt(cell.dataset.row);
+                        const col = parseInt(cell.dataset.col);
+                        highlightCell(row, col);
+                    }
+                });
+
+                document.querySelectorAll('.num-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const num = parseInt(btn.dataset.num);
+                        handleNumberInput(num);
+                    });
+                });
+
+                document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const difficulty = btn.dataset.difficulty;
+                        handleDifficultyChange(difficulty);
+                    });
+                });
+
+                document.getElementById('undo-btn').addEventListener('click', handleUndo);
+                document.getElementById('redo-btn').addEventListener('click', handleRedo);
+                document.getElementById('pause-btn').addEventListener('click', handlePause);
+                document.getElementById('resume-btn').addEventListener('click', handleResume);
+                document.getElementById('reset-btn').addEventListener('click', handleReset);
+                document.getElementById('play-again-btn').addEventListener('click', handlePlayAgain);
+
+                document.addEventListener('keydown', handleKeyDown);
+            }
+
+            function handleNumberInput(num) {
+                if (selectedRow === -1 || selectedCol === -1) return;
+                if (GameEngine.isFixed(selectedRow, selectedCol)) return;
+
+                const result = GameEngine.makeMove(selectedRow, selectedCol, num);
+                
+                if (result.valid) {
+                    updateCell(selectedRow, selectedCol, num, result.isError);
+                    updateMistakes(GameEngine.getMistakes());
+                    updateUndoRedoButtons();
+
+                    if (GameEngine.isSolved()) {
+                        TimerService.stop();
+                        showCompletion({
+                            time: TimerService.getElapsedSeconds(),
+                            difficulty: GameEngine.getDifficulty(),
+                            mistakes: GameEngine.getMistakes()
+                        });
+                    }
+                }
+            }
+
+            function handleKeyDown(e) {
+                if (selectedRow === -1 || selectedCol === -1) return;
+
+                if (e.key >= '1' && e.key <= '9') {
+                    handleNumberInput(parseInt(e.key));
+                } else if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') {
+                    handleNumberInput(0);
+                } else if (e.key === 'ArrowUp' && selectedRow > 0) {
+                    highlightCell(selectedRow - 1, selectedCol);
+                } else if (e.key === 'ArrowDown' && selectedRow < 8) {
+                    highlightCell(selectedRow + 1, selectedCol);
+                } else if (e.key === 'ArrowLeft' && selectedCol > 0) {
+                    highlightCell(selectedRow, selectedCol - 1);
+                } else if (e.key === 'ArrowRight' && selectedCol < 8) {
+                    highlightCell(selectedRow, selectedCol + 1);
+                } else if (e.key === 'z' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    handleUndo();
+                } else if (e.key === 'y' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    handleRedo();
+                }
+            }
+
+            function handleUndo() {
+                const result = GameEngine.undo();
+                if (result) {
+                    updateCell(result.row, result.col, result.value);
+                    updateMistakes(result.mistakes);
+                    updateUndoRedoButtons();
+                    highlightCell(selectedRow, selectedCol);
+                }
+            }
+
+            function handleRedo() {
+                const result = GameEngine.redo();
+                if (result) {
+                    updateCell(result.row, result.col, result.value);
+                    updateMistakes(result.mistakes);
+                    updateUndoRedoButtons();
+                    highlightCell(selectedRow, selectedCol);
+                }
+            }
+
+            function handlePause() {
+                TimerService.pause();
+                showPause();
+            }
+
+            function handleResume() {
+                TimerService.resume();
+                hidePause();
+            }
+
+            function handleReset() {
+                GameEngine.resetPuzzle();
+                const board = GameEngine.getBoard();
+                const fixedCells = GameEngine.getFixedCells();
+                renderBoard(board, fixedCells);
+                updateMistakes(GameEngine.getMistakes());
+                updateUndoRedoButtons();
+                clearHighlights();
+                TimerService.reset();
+                TimerService.start();
+            }
+
+            function handleDifficultyChange(difficulty) {
+                document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.difficulty === difficulty);
+                });
+
+                hideCompletion();
+                hidePause();
+
+                GameEngine.initPuzzle(difficulty);
+                const board = GameEngine.getBoard();
+                const fixedCells = GameEngine.getFixedCells();
+                
+                renderBoard(board, fixedCells);
+                updateMistakes(GameEngine.getMistakes());
+                updateDifficulty(difficulty);
+                updateUndoRedoButtons();
+                clearHighlights();
+                
+                TimerService.reset();
+                TimerService.start();
+            }
+
+            function handlePlayAgain() {
+                hideCompletion();
+                const difficulty = GameEngine.getDifficulty();
+                handleDifficultyChange(difficulty);
+            }
+
+            return {
+                init,
+                renderBoard,
+                highlightCell,
+                updateCell,
+                updateTimer,
+                updateMistakes,
+                updateDifficulty,
+                updateUndoRedoButtons,
+                showCompletion,
+                hideCompletion,
+                showPause,
+                hidePause
+            };
+        })();
+
+        // ============================================
+        // Application Initialization
+        // ============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            UIRenderer.init();
+            
+            GameEngine.initPuzzle('easy');
+            const board = GameEngine.getBoard();
+            const fixedCells = GameEngine.getFixedCells();
+            
+            UIRenderer.renderBoard(board, fixedCells);
+            UIRenderer.updateMistakes(GameEngine.getMistakes());
+            UIRenderer.updateDifficulty('easy');
+            
+            TimerService.start();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+{
+  "initiativeId": "init-sudoku-20260619-0128",
+  "artifacts": {
+    "brief": {
+      "name": "brief",
+      "currentVersion": 1,
+      "format": "md",
+      "history": [
+        {
+          "version": 1,
+          "uri": "file:///data/artifacts/init-sudoku-20260619-0128/truth/brief.v1.md",
+          "contentHash": "6f530b4c72559d8adba23c1380bf6444262659ec3ba8f78150cc57d7f32e4259",
+          "approvedBy": "system",
+          "approvedAtIso": "2026-06-19T01:28:43.943Z"
+        }
+      ]
+    },
+    "tpm-contract": {
+      "name": "tpm-contract",
+      "currentVersion": 1,
+      "format": "json",
+      "history": [
+        {
+          "version": 1,
+          "uri": "file:///data/artifacts/init-sudoku-20260619-0128/truth/tpm-contract.v1.json",
+          "contentHash": "975e777d6dcc63162d49692f93e27a94cfd1cd95da635a0d46a98152360d2624",
+          "approvedBy": "tpm",
+          "approvedAtIso": "2026-06-19T01:39:26.804Z"
+        }
+      ]
+    },
+    "arch-guardrails": {
+      "name": "arch-guardrails",
+      "currentVersion": 1,
+      "format": "json",
+      "history": [
+        {
+          "version": 1,
+          "uri": "file:///data/artifacts/init-sudoku-20260619-0128/truth/arch-guardrails.v1.json",
+          "contentHash": "fd512c2aabc72f58f0d0c88447226318751db9c77e1d665184c25b9ca0b1fb90",
+          "approvedBy": "tpm",
+          "approvedAtIso": "2026-06-19T01:39:33.088Z",
+          "derivedFrom": [
+            {
+              "artifactName": "tpm-contract",
+              "version": 1,
+              "contentHash": "975e777d6dcc63162d49692f93e27a94cfd1cd95da635a0d46a98152360d2624"
+            }
+          ]
+        }
+      ]
+    },
+    "dev-plan": {
+      "name": "dev-plan",
+      "currentVersion": 1,
+      "format": "json",
+      "history": [
+        {
+          "version": 1,
+          "uri": "file:///data/artifacts/init-sudoku-20260619-0128/truth/dev-plan.v1.json",
+          "contentHash": "90f1cf161e77acd5a4f08e6d4e0d1b9e588fc24e930d158f8d8c5cf67cd52e0b",
+          "approvedBy": "tpm",
+          "approvedAtIso": "2026-06-19T01:39:49.019Z",
+          "derivedFrom": [
+            {
+              "artifactName": "tpm-contract",
+              "version": 1,
+              "contentHash": "975e777d6dcc63162d49692f93e27a94cfd1cd95da635a0d46a98152360d2624"
+            },
+            {
+              "artifactName": "arch-guardrails",
+              "version": 1,
+              "contentHash": "fd512c2aabc72f58f0d0c88447226318751db9c77e1d665184c25b9ca0b1fb90"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "usedNonces": [
+    "27ede8c7-a5ab-47f0-9761-dafb4803a78a",
+    "1856c8eb-a9cf-4700-9695-c4713258f996",
+    "8840a4ae-92d2-49df-a830-7e4ec531aee6",
+    "ddc4e57d-1934-4b46-9d43-8780d017147f"
+  ],
+  "updatedAtIso": "2026-06-19T01:39:49.019Z"
+}

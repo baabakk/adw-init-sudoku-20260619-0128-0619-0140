@@ -1,0 +1,9 @@
+{
+  "n": 7,
+  "tool": "runCommand",
+  "input": {
+    "command": "wc -l index.html && head -5 index.html && echo \"...\" && tail -5 index.html"
+  },
+  "result": "exit=1\nstdout:\n\nstderr:\n[cmd-tool] Command not in allowlist: \"wc -l index.html && head -5 index.html && echo \"...\" && tail -5 index.html\"\nAllowed commands: npm ci, npm install, npm run build, npm run dev, npm test, npm run test, node -c, npx tsc --noEmit",
+  "tsIso": "2026-06-19T01:40:41.407Z"
+}
