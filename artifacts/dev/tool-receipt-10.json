@@ -1,0 +1,9 @@
+{
+  "n": 10,
+  "tool": "listFiles",
+  "input": {
+    "glob": "*"
+  },
+  "result": "README.md\nindex.html",
+  "tsIso": "2026-06-19T01:40:49.616Z"
+}

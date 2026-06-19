@@ -1,0 +1,27 @@
+{
+  "techStack": "vanilla HTML/CSS/JS single-file browser app",
+  "entryPoint": "index.html",
+  "files": [
+    {
+      "path": "index.html",
+      "purpose": "Complete single-file Sudoku game containing all CSS styles, embedded puzzle data, GameEngine module (board, validation, undo/redo), UIRenderer module (grid, highlighting, overlays), TimerService module (pause/resume), and event handlers"
+    },
+    {
+      "path": "README.md",
+      "purpose": "Documentation with usage instructions, feature overview, and how to run the game offline"
+    }
+  ],
+  "runCommand": "open index.html",
+  "testCommand": "Manual testing: load index.html in browser, verify grid renders, test keyboard/mobile input, verify timer, undo/redo, pause, and completion screen",
+  "buildCommand": "none required",
+  "constraints": [
+    "Single HTML file containing all code, styles, and puzzle data (NFR-01)",
+    "Offline-only operation with no external network requests",
+    "Responsive design using native CSS Grid/Flexbox and media queries (NFR-02)",
+    "Clear visual states for selected, fixed, invalid, and completed cells",
+    "Embedded curated puzzles for easy, medium, and hard difficulties",
+    "Timer stops when game is paused and screen goes black (FR-11)",
+    "Undo/Redo via command stack as per ADR-003",
+    "Content-Security-Policy meta tag for security baseline"
+  ]
+}

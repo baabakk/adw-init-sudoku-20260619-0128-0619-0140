@@ -1,0 +1,21 @@
+{
+  "initiativeId": "init-sudoku-20260619-0128",
+  "workspaceDir": "/data/artifacts/init-sudoku-20260619-0128/workspace",
+  "testedAt": "2026-06-19T01:40:54.574Z",
+  "overallStatus": "passed",
+  "validationResults": [
+    {
+      "step": "html-file-check",
+      "passed": true,
+      "output": "Found 1 HTML file(s): index.html",
+      "errorOutput": ""
+    },
+    {
+      "step": "html-references:index.html",
+      "passed": true,
+      "output": "All references valid",
+      "errorOutput": ""
+    }
+  ],
+  "bugReports": []
+}
